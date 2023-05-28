@@ -1,17 +1,18 @@
 #!/usr/bin/env python
+import ssl
+import socket
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.client import HTTPConnection
 
-from config import HOST_MAP, HNF_REDIRECT, BUFSIZE
+from config import ADDR, PORT, HOST_MAP, HNF_REDIRECT, BUFSIZE, CERTFILE, KEYFILE
 
 
 class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
-    protocol_version = 'HTTP/1.1'
-    handler_ids = []
 
-    def __init__(self, x, y, z):
-        super().__init__(x, y, z)
+    protocol_version = 'HTTP/1.1'
+
+    handler_ids = []
 
     def __del__(self):
         if hasattr(self, '_id'):
@@ -122,8 +123,24 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
-    server_address = ('0.0.0.0', 8080)
-    httpd = ThreadingHTTPServer(server_address, ProxyHTTPRequestHandler)
-    print("proxy server running...")
+    # prevent getting stuck on ssl handshake
+    socket.setdefaulttimeout(1.0)
+
+    server_address = (ADDR, PORT)
+
+    if KEYFILE and CERTFILE:
+        httpd = ThreadingHTTPServer(server_address, ProxyHTTPRequestHandler)
+        httpd.socket = ssl.wrap_socket(
+                               httpd.socket,
+                               server_side=True,
+                               keyfile=KEYFILE,
+                               certfile=CERTFILE,
+                               ssl_version=ssl.PROTOCOL_TLS
+        )
+    else:
+        httpd = ThreadingHTTPServer(server_address, ProxyHTTPRequestHandler)
+
+    print(f"proxy server running on port {server_address[1]}")    
+
     httpd.serve_forever()
 
