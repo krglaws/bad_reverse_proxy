@@ -5,7 +5,7 @@ import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.client import HTTPConnection
 
-from config import ADDR, PORT, HOST_MAP, HNF_REDIRECT, BUFSIZE, CERTFILE, KEYFILE
+from config import ADDR, PORT, DEFAULT_TIMEOUT, HOST_MAP, HNF_REDIRECT, BUFSIZE, CERTFILE, KEYFILE
 
 
 class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -60,7 +60,7 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'text/html')
         self.send_header('Content-Length', '32')
         self.end_headers()
-        self.wfile.write(b'<h1>503 Service Unavailable</h1>')
+        self.wfile.write(b'503 Service Unavailable')
 
     def buffered_rw(self, read_fn, write_fn, count):
         while count > BUFSIZE:
@@ -75,7 +75,7 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         content_len = 0
         self.proxy_client.putrequest(self.command, self.path, skip_host=True, skip_accept_encoding=True)
         for key, val in self.headers.items():
-            if key == 'Content-Length':
+            if key.lower() == 'content-length':
                 content_len = int(val)
             self.proxy_client.putheader(key, val)
         self.proxy_client.endheaders()
@@ -86,10 +86,10 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         self.send_response(resp.getcode())
         resp_headers = resp.getheaders()
         content_len = 0
-        for header in resp_headers:
-            if header[0] == 'Content-Length':
-                content_len = int(header[1])
-            self.send_header(header[0], header[1])
+        for key, val in resp_headers:
+            if key.lower() == 'content-length':
+                content_len = int(val)
+            self.send_header(key, val)
         self.end_headers()
         self.buffered_rw(resp.read, self.wfile.write, content_len)
         resp.close()
@@ -124,7 +124,7 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     # prevent getting stuck on ssl handshake
-    socket.setdefaulttimeout(1.0)
+    socket.setdefaulttimeout(DEFAULT_TIMEOUT)
 
     server_address = (ADDR, PORT)
 
