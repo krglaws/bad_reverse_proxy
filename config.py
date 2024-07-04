@@ -2,6 +2,7 @@
 ADDR = '0.0.0.0'
 PORT = 8080
 DEFAULT_TIMEOUT = 1.0
+SERVER_NAME = 'bad-reverse-proxy'
 
 # maps hostname to another server/port combo in a tuple
 # example: "www.example.com": ('internal_hostname', <port>)

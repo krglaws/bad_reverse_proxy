@@ -5,7 +5,7 @@ import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from http.client import HTTPConnection
 
-from config import ADDR, PORT, DEFAULT_TIMEOUT, HOST_MAP, HNF_REDIRECT, BUFSIZE, CERTFILE, KEYFILE
+from config import ADDR, PORT, DEFAULT_TIMEOUT, SERVER_NAME, HOST_MAP, HNF_REDIRECT, BUFSIZE, CERTFILE, KEYFILE
 
 
 class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
@@ -35,6 +35,19 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         ids = ProxyHTTPRequestHandler.handler_ids
         ids.remove(self._id)
         self.log_message(f"Destroyed handler #{self._id} - no. handlers {len(ids)}")
+
+    def send_response(self, code, message=None):
+        """Add the response header to the headers buffer and log the
+        response code.
+
+        Also send two standard headers with the server software
+        version and the current date.
+
+        """
+        self.log_request(code)
+        self.send_response_only(code, message)
+        self.send_header('Server', SERVER_NAME)
+        self.send_header('Date', self.date_time_string())
 
     def do_GET(self):
         self.handle_all()
@@ -87,6 +100,9 @@ class ProxyHTTPRequestHandler(BaseHTTPRequestHandler):
         resp_headers = resp.getheaders()
         content_len = 0
         for key, val in resp_headers:
+            if key.lower() == 'date' or key.lower() == 'server':
+                # these are already sent by self.send_response()
+                continue
             if key.lower() == 'content-length':
                 content_len = int(val)
             self.send_header(key, val)
